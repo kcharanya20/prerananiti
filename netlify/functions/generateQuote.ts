@@ -1,13 +1,18 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Handler } from "@netlify/functions";
 
-const handler: Handler = async (event) => {
+export const handler: Handler = async (event) => {
   try {
-    // Read data sent from frontend
     const body = event.body ? JSON.parse(event.body) : {};
     const { language, mood } = body;
 
-    // API key from Netlify environment variables
+    if (!language || !mood) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing language or mood" }),
+      };
+    }
+
     const apiKey = process.env.VITE_API_KEY;
 
     if (!apiKey) {
@@ -17,15 +22,14 @@ const handler: Handler = async (event) => {
       };
     }
 
-    // Initialize Gemini (SERVER-SIDE — SAFE)
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
-Generate a short, powerful motivational quote in ${language} for a person who feels ${mood}.
-Include the author name.
-If not English, also give an English translation.
-Return the response clearly.
+Generate a short, powerful motivational quote in ${language}
+for a person feeling ${mood}.
+Include the author.
+If not English, include English translation.
 `;
 
     const result = await model.generateContent(prompt);
@@ -33,11 +37,11 @@ Return the response clearly.
 
     return {
       statusCode: 200,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ result: text }),
     };
 
   } catch (error: any) {
-    // 🔴 DEBUG: expose the real Gemini / runtime error
     console.error("Gemini error:", error);
 
     return {
@@ -48,5 +52,3 @@ Return the response clearly.
     };
   }
 };
-
-export { handler };
